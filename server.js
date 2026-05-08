@@ -2,6 +2,7 @@ const express = require('express');
 const lodash = require('lodash');
 const sqlite3 = require('sqlite3').verbose();
 const cookieParser = require('cookie-parser');
+const { exec } = require('child_process');
 
 const app = express();
 app.use(cookieParser());
@@ -68,6 +69,19 @@ app.get('/update-profile', (req, res) => {
     // lodash 4.17.11 es vulnerable a prototype pollution
     lodash.merge(profile, data);
     res.json(profile);
+});
+
+// VULNERABILIDAD 7: Inyección de Comandos (Command Injection)
+app.get('/ping', (req, res) => {
+    const ip = req.query.ip;
+    // PELIGRO: Ejecución directa de comandos con input del usuario
+    exec(`ping -n 1 ${ip}`, (err, stdout, stderr) => {
+        if (err) {
+            res.status(500).send(err.message);
+            return;
+        }
+        res.send(`<pre>${stdout}</pre>`);
+    });
 });
 
 const PORT = 3000;
