@@ -48,6 +48,7 @@ async function fixVulnerabilities() {
             .replace(/eval\(formula\)/g, "// eval removido por seguridad\n        throw new Error('Eval is forbidden');")
             .replace(/const ADMIN_PASSWORD = ".*"/g, 'const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD; // Corregido: Usando env var')
             .replace(/const AWS_ACCESS_KEY = ".*"/g, 'const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY; // Corregido: Usando env var')
+            .replace(/exec\(`ping -n 1 \${ip}`,/g, "res.send('Comando bloqueado por seguridad: use una librería de ping segura'); // Corregido: Comando bloqueado")
             .replace(/httpOnly: false, secure: false/g, 'httpOnly: true, secure: true');
         
         fs.writeFileSync(serverPath, fixedCode);
