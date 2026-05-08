@@ -1,0 +1,31 @@
+name: Security Scan
+
+on:
+  push:
+    branches: [ main, master ]
+  pull_request:
+    branches: [ main, master ]
+
+jobs:
+  security:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '18'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Dependency Review (SCA)
+        run: npm audit --audit-level=high
+        continue-on-error: true # Para que el pipeline no se rompa y puedas ver los resultados
+
+      - name: Simple Secret Scan
+        run: |
+          # Un comando simple para buscar strings que parecen llaves
+          grep -rE "AKIA[0-9A-Z]{16}" . || echo "No AWS keys found"
+          grep -ri "password =" . || echo "No passwords found"
