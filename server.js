@@ -18,15 +18,13 @@ db.serialize(() => {
 });
 
 app.get('/', (req, res) => {
-    res.send('<h1>Vulnerable App for CI/CD Testing</h1><p>Check the source code for intentional flaws.</p>');
+    res.send('<h1>Vulnerable App for CI/CD Testing</h1>');
 });
 
 // VULNERABILIDAD 2: Inyección SQL (SQL Injection)
 app.get('/user', (req, res) => {
     const name = req.query.name;
-    // Malo: Concatenación directa de strings
     const query = "SELECT * FROM users WHERE name = '" + name + "'";
-    
     db.all(query, [], (err, rows) => {
         if (err) {
             res.status(500).send(err.message);
@@ -39,7 +37,6 @@ app.get('/user', (req, res) => {
 // VULNERABILIDAD 3: Cross-Site Scripting (XSS) Reflejado
 app.get('/search', (req, res) => {
     const q = req.query.q;
-    // Malo: Enviando input del usuario directamente al HTML sin sanitizar
     res.send("You searched for: " + q);
 });
 
@@ -47,7 +44,6 @@ app.get('/search', (req, res) => {
 app.get('/calc', (req, res) => {
     const formula = req.query.formula;
     try {
-        // MUY MALO: Usar eval con input del usuario
         const result = eval(formula);
         res.send("Result: " + result);
     } catch (e) {
@@ -57,7 +53,6 @@ app.get('/calc', (req, res) => {
 
 // VULNERABILIDAD 5: Configuración insegura de Cookies
 app.get('/login', (req, res) => {
-    // Malo: Cookie sin flag HttpOnly ni Secure
     res.cookie('sessionID', 'fake-session-token', { httpOnly: false, secure: false });
     res.send("Logged in!");
 });
@@ -66,7 +61,6 @@ app.get('/login', (req, res) => {
 app.get('/update-profile', (req, res) => {
     let profile = {};
     const data = JSON.parse(req.query.data);
-    // lodash 4.17.11 es vulnerable a prototype pollution
     lodash.merge(profile, data);
     res.json(profile);
 });
@@ -74,7 +68,6 @@ app.get('/update-profile', (req, res) => {
 // VULNERABILIDAD 7: Inyección de Comandos (Command Injection)
 app.get('/ping', (req, res) => {
     const ip = req.query.ip;
-    // PELIGRO: Ejecución directa de comandos con input del usuario
     exec(`ping -n 1 ${ip}`, (err, stdout, stderr) => {
         if (err) {
             res.status(500).send(err.message);
