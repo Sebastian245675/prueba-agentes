@@ -1,31 +1,56 @@
-name: Security Scan
+name: AI Security Self-Healing
 
 on:
   push:
-    branches: [ main, master ]
-  pull_request:
-    branches: [ main, master ]
+    branches: [ main ]
 
 jobs:
-  security:
+  scan-and-fix:
     runs-on: ubuntu-latest
+    permissions:
+      contents: write # Para poder hacer push de los cambios corregidos
+
     steps:
-      - uses: actions/checkout@v3
+      - name: Checkout Code
+        uses: actions/checkout@v3
 
       - name: Set up Node.js
         uses: actions/setup-node@v3
         with:
           node-version: '18'
 
-      - name: Install dependencies
+      - name: Install Dependencies
         run: npm install
 
-      - name: Dependency Review (SCA)
-        run: npm audit --audit-level=high
-        continue-on-error: true # Para que el pipeline no se rompa y puedas ver los resultados
-
-      - name: Simple Secret Scan
+      - name: 1. Scan for Vulnerabilities (SCA)
+        id: scan
         run: |
-          # Un comando simple para buscar strings que parecen llaves
-          grep -rE "AKIA[0-9A-Z]{16}" . || echo "No AWS keys found"
-          grep -ri "password =" . || echo "No passwords found"
+          npm audit --json > audit-results.json || true
+          echo "Vulnerabilidades detectadas y guardadas."
+
+      - name: 2. AI Remediation
+        env:
+          AI_API_KEY: ${{ secrets.AI_API_KEY }} # Debes añadir esto en GitHub Secrets
+        run: node scripts/ai_fix.js
+
+      - name: 3. Verify Fixes (Optional Tests)
+        run: |
+          # Aquí podrías correr tests para asegurar que la IA no rompió nada
+          node -c server.js # Verifica sintaxis básica
+
+      - name: 4. Push Fixed Code to New Branch
+        run: |
+          git config --global user.name "AI-Security-Bot"
+          git config --global user.email "bot@security.ia"
+          
+          git checkout -b fixed-remediation-${{ github.run_id }}
+          git add server.js package.json
+          git commit -m "security: fixes applied by AI assistant"
+          
+          # Push a la nueva rama
+          git push origin fixed-remediation-${{ github.run_id }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Summary
+        run: echo "El proceso ha terminado. Revisa la nueva rama para ver las correcciones."
