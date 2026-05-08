@@ -45,10 +45,13 @@ jobs:
           
           git checkout -b fixed-remediation-${{ github.run_id }}
           git add server.js package.json
-          git commit -m "security: fixes applied by AI assistant"
           
-          # Push a la nueva rama
-          git push origin fixed-remediation-${{ github.run_id }}
+          if git diff --cached --quiet; then
+            echo "No se detectaron cambios para corregir."
+          else
+            git commit -m "security: fixes applied by AI assistant"
+            git push origin fixed-remediation-${{ github.run_id }}
+          fi
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
 

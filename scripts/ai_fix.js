@@ -38,32 +38,29 @@ async function fixVulnerabilities() {
     // Simulamos que la IA nos devuelve el código corregido por ahora
     // Si tienes una API Key en los Secrets de GitHub, podrías usar fetch() aquí.
     
+    console.log("Procesando correcciones...");
+
+    let fixedCode = sourceCode
+        .replace(/eval\(formula\)/g, "// eval removido por seguridad\n        throw new Error('Eval is forbidden');")
+        .replace(/const ADMIN_PASSWORD = ".*"/g, 'const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD; // Corregido: Usando env var')
+        .replace(/const AWS_ACCESS_KEY = ".*"/g, 'const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY; // Corregido: Usando env var')
+        .replace(/exec\(`ping -n 1 \${ip}`,/g, "res.send('Comando bloqueado por seguridad: use una librería de ping segura'); // Corregido: Comando bloqueado")
+        .replace(/httpOnly: false, secure: false/g, 'httpOnly: true, secure: true');
+
     const apiKey = process.env.AI_API_KEY;
 
-    if (!apiKey) {
-        console.error("ERROR: No se encontró la variable de entorno AI_API_KEY.");
-        console.log("Simulando una corrección básica para demostrar el flujo...");
-        
-        let fixedCode = sourceCode
-            .replace(/eval\(formula\)/g, "// eval removido por seguridad\n        throw new Error('Eval is forbidden');")
-            .replace(/const ADMIN_PASSWORD = ".*"/g, 'const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD; // Corregido: Usando env var')
-            .replace(/const AWS_ACCESS_KEY = ".*"/g, 'const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY; // Corregido: Usando env var')
-            .replace(/exec\(`ping -n 1 \${ip}`,/g, "res.send('Comando bloqueado por seguridad: use una librería de ping segura'); // Corregido: Comando bloqueado")
-            .replace(/httpOnly: false, secure: false/g, 'httpOnly: true, secure: true');
-        
-        fs.writeFileSync(serverPath, fixedCode);
-        console.log("Código corregido (simulación) guardado en server.js");
+    if (apiKey && apiKey !== "TU_API_KEY_AQUI") {
+        console.log("AI_API_KEY detectada. Aquí podrías implementar el fetch real.");
+        // Aquí iría tu fetch real a OpenAI/Gemini
     } else {
-        // Ejemplo real con fetch (OpenAI / Gemini compatible)
-        try {
-            // Ejemplo conceptual:
-            // const response = await fetch('https://api.openai.com/v1/chat/completions', { ... });
-            // const data = await response.json();
-            // fs.writeFileSync(serverPath, data.choices[0].message.content);
-            console.log("Llamada real a la IA configurada (Placeholder)");
-        } catch (error) {
-            console.error("Fallo al llamar a la IA:", error);
-        }
+        console.log("Usando correcciones predefinidas (Simulación).");
+    }
+
+    if (fixedCode !== sourceCode) {
+        fs.writeFileSync(serverPath, fixedCode);
+        console.log("✅ Código corregido guardado en server.js");
+    } else {
+        console.log("⚠️ No se detectaron vulnerabilidades corregibles en esta versión.");
     }
 }
 
