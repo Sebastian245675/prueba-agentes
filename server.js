@@ -2,14 +2,15 @@ const express = require('express');
 const lodash = require('lodash');
 const sqlite3 = require('sqlite3').verbose();
 const cookieParser = require('cookie-parser');
-const { exec } = require('child_process');
+// FIX: child_process eliminado - nunca ejecutar comandos con input del usuario
 
 const app = express();
 app.use(cookieParser());
+app.use(express.json());
 
-// VULNERABILIDAD 1: Secreto Hardcodeado (Hardcoded Secret)
-const ADMIN_PASSWORD = "SuperSecretPassword123!";
-const AWS_ACCESS_KEY = "AKIAEXAMPLE123456789";
+// FIX 1: Secretos movidos a variables de entorno
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
 
 const db = new sqlite3.Database(':memory:');
 db.serialize(() => {
@@ -18,66 +19,61 @@ db.serialize(() => {
 });
 
 app.get('/', (req, res) => {
-    res.send('<h1>Vulnerable App for CI/CD Testing</h1>');
+    res.send('<h1>Secure App - Fixed by AI Remediation Bot</h1>');
 });
 
-// VULNERABILIDAD 2: Inyección SQL (SQL Injection)
+// FIX 2: SQL Injection -> Parameterized Query
 app.get('/user', (req, res) => {
     const name = req.query.name;
-    const query = "SELECT * FROM users WHERE name = '" + name + "'";
-    db.all(query, [], (err, rows) => {
+    // SEGURO: Usando placeholders parametrizados
+    const query = "SELECT * FROM users WHERE name = ?";
+    db.all(query, [name], (err, rows) => {
         if (err) {
-            res.status(500).send(err.message);
+            res.status(500).send("Database error");
             return;
         }
         res.json(rows);
     });
 });
 
-// VULNERABILIDAD 3: Cross-Site Scripting (XSS) Reflejado
+// FIX 3: XSS -> Escapar el output
 app.get('/search', (req, res) => {
-    const q = req.query.q;
+    const q = (req.query.q || '').replace(/</g, '&lt;').replace(/>/g, '&gt;');
     res.send("You searched for: " + q);
 });
 
-// VULNERABILIDAD 4: Ejecución de Código Remoto (RCE) vía eval
+// FIX 4: RCE (eval) -> Removido completamente
 app.get('/calc', (req, res) => {
-    const formula = req.query.formula;
-    try {
-        const result = eval(formula);
-        res.send("Result: " + result);
-    } catch (e) {
-        res.send("Error in formula");
-    }
+    res.status(403).json({ error: 'eval is forbidden for security reasons' });
 });
 
-// VULNERABILIDAD 5: Configuración insegura de Cookies
+// FIX 5: Cookies seguras con HttpOnly y Secure
 app.get('/login', (req, res) => {
-    res.cookie('sessionID', 'fake-session-token', { httpOnly: false, secure: false });
+    res.cookie('sessionID', 'fake-session-token', { httpOnly: true, secure: true, sameSite: 'Strict' });
     res.send("Logged in!");
 });
 
-// VULNERABILIDAD 6: Prototype Pollution (vía lodash antiguo)
+// FIX 6: Prototype Pollution -> Validar que data no tenga __proto__
 app.get('/update-profile', (req, res) => {
     let profile = {};
-    const data = JSON.parse(req.query.data);
-    lodash.merge(profile, data);
-    res.json(profile);
+    try {
+        const data = JSON.parse(req.query.data);
+        if (data.__proto__ || data.constructor || data.prototype) {
+            return res.status(400).json({ error: 'Prototype pollution attempt blocked' });
+        }
+        lodash.merge(profile, data);
+        res.json(profile);
+    } catch (e) {
+        res.status(400).json({ error: 'Invalid JSON' });
+    }
 });
 
-// VULNERABILIDAD 7: Inyección de Comandos (Command Injection)
+// FIX 7: Command Injection -> Endpoint eliminado y reemplazado con respuesta segura
 app.get('/ping', (req, res) => {
-    const ip = req.query.ip;
-    exec(`ping -n 1 ${ip}`, (err, stdout, stderr) => {
-        if (err) {
-            res.status(500).send(err.message);
-            return;
-        }
-        res.send(`<pre>${stdout}</pre>`);
-    });
+    res.status(403).json({ error: 'Direct command execution is forbidden. Use a safe ping library.' });
 });
 
 const PORT = 3000;
 app.listen(PORT, () => {
-    console.log(`Vulnerable server running on http://localhost:${PORT}`);
+    console.log(`Secure server running on http://localhost:${PORT}`);
 });
