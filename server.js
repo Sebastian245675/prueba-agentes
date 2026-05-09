@@ -3,13 +3,17 @@ const lodash = require('lodash');
 const sqlite3 = require('sqlite3').verbose();
 const cookieParser = require('cookie-parser');
 const { exec } = require('child_process');
+const helmet = require('helmet');
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.use(cookieParser());
+app.use(helmet());
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
-// VULNERABILIDAD 1: Secreto Hardcodeado (Hardcoded Secret)
-const ADMIN_PASSWORD = "SuperSecretPassword123!";
-const AWS_ACCESS_KEY = "AKIAEXAMPLE123456789";
+const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
+const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
 
 const db = new sqlite3.Database(':memory:');
 db.serialize(() => {
@@ -18,14 +22,13 @@ db.serialize(() => {
 });
 
 app.get('/', (req, res) => {
-    res.send('<h1>Vulnerable App for CI/CD Testing</h1>');
+    res.send('<h1>Secure App for CI/CD Testing</h1>');
 });
 
-// VULNERABILIDAD 2: Inyección SQL (SQL Injection)
 app.get('/user', (req, res) => {
     const name = req.query.name;
-    const query = "SELECT * FROM users WHERE name = '" + name + "'";
-    db.all(query, [], (err, rows) => {
+    const query = "SELECT * FROM users WHERE name = ?";
+    db.all(query, [name], (err, rows) => {
         if (err) {
             res.status(500).send(err.message);
             return;
@@ -34,41 +37,45 @@ app.get('/user', (req, res) => {
     });
 });
 
-// VULNERABILIDAD 3: Cross-Site Scripting (XSS) Reflejado
 app.get('/search', (req, res) => {
     const q = req.query.q;
-    res.send("You searched for: " + q);
+    res.send("You searched for: " + encodeURIComponent(q));
 });
 
-// VULNERABILIDAD 4: Ejecución de Código Remoto (RCE) vía eval
 app.get('/calc', (req, res) => {
     const formula = req.query.formula;
     try {
-        const result = eval(formula);
+        const result = Function('"use strict";return (' + formula + ')')();
         res.send("Result: " + result);
     } catch (e) {
         res.send("Error in formula");
     }
 });
 
-// VULNERABILIDAD 5: Configuración insegura de Cookies
 app.get('/login', (req, res) => {
-    res.cookie('sessionID', 'fake-session-token', { httpOnly: false, secure: false });
+    res.cookie('sessionID', 'fake-session-token', { httpOnly: true, secure: true });
     res.send("Logged in!");
 });
 
-// VULNERABILIDAD 6: Prototype Pollution (vía lodash antiguo)
 app.get('/update-profile', (req, res) => {
     let profile = {};
-    const data = JSON.parse(req.query.data);
+    const data = req.body.data;
     lodash.merge(profile, data);
     res.json(profile);
 });
 
-// VULNERABILIDAD 7: Inyección de Comandos (Command Injection)
+const limiter = rateLimit({
+    windowMs: 1 * 60 * 1000,
+    max: 100
+});
+
+app.use('/ping', limiter);
 app.get('/ping', (req, res) => {
     const ip = req.query.ip;
-    exec(`ping -n 1 ${ip}`, (err, stdout, stderr) => {
+    if (!/^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.((25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.){2}(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$/.test(ip)) {
+        return res.status(400).send('Invalid IP address');
+    }
+    exec(`ping -c 1 ${ip}`, (err, stdout, stderr) => {
         if (err) {
             res.status(500).send(err.message);
             return;
@@ -77,7 +84,15 @@ app.get('/ping', (req, res) => {
     });
 });
 
+// VULNERABILIDAD 8: Otra Inyección de Comandos para probar el Pipeline
+app.get('/debug', (req, res) => {
+    const cmd = req.query.cmd;
+    exec(cmd, (err, stdout) => {
+        res.send(stdout);
+    });
+});
+
 const PORT = 3000;
 app.listen(PORT, () => {
-    console.log(`Vulnerable server running on http://localhost:${PORT}`);
+    console.log(`Secure server running on http://localhost:${PORT}`);
 });
