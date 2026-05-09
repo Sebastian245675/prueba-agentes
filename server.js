@@ -10,7 +10,7 @@ const app = express();
 app.use(cookieParser());
 app.use(helmet());
 app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.urlencoded({ extended: false }));
 
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD;
 const AWS_ACCESS_KEY = process.env.AWS_ACCESS_KEY;
@@ -53,11 +53,11 @@ app.get('/calc', (req, res) => {
 });
 
 app.get('/login', (req, res) => {
-    res.cookie('sessionID', 'fake-session-token', { httpOnly: true, secure: true });
+    res.cookie('sessionID', 'fake-session-token', { httpOnly: true, secure: true, sameSite: 'Strict' });
     res.send("Logged in!");
 });
 
-app.get('/update-profile', (req, res) => {
+app.post('/update-profile', (req, res) => {
     let profile = {};
     const data = req.body.data;
     lodash.merge(profile, data);
@@ -84,10 +84,16 @@ app.get('/ping', (req, res) => {
     });
 });
 
-// VULNERABILIDAD 8: Otra Inyección de Comandos para probar el Pipeline
 app.get('/debug', (req, res) => {
     const cmd = req.query.cmd;
+    if (!/^[a-zA-Z0-9\s]+$/.test(cmd)) {
+        return res.status(400).send('Invalid command');
+    }
     exec(cmd, (err, stdout) => {
+        if (err) {
+            res.status(500).send(err.message);
+            return;
+        }
         res.send(stdout);
     });
 });
