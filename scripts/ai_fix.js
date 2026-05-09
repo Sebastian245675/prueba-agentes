@@ -101,7 +101,7 @@ INSTRUCCIONES ESTRICTAS:
     // Verificar sintaxis con Node.js antes de reemplazar
     const { execSync } = require('child_process');
     try {
-        execSync(`node --check ${tempPath}`, { stdio: 'pipe' });
+        execSync(`node --check "${tempPath}"`, { stdio: 'pipe' });
         console.log("✅ Sintaxis del código corregido: VÁLIDA");
     } catch (err) {
         console.error("❌ El código generado por Gemini tiene errores de sintaxis:");
