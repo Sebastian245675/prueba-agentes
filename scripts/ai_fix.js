@@ -44,39 +44,42 @@ INSTRUCCIONES ESTRICTAS:
 5. El código debe ser sintácticamente válido y funcional.`;
 
     const response = await fetch(
-        `https://generativelanguage.googleapis.com/v1beta/models/gemini-1.5-flash:generateContent?key=${apiKey}`,
+        'https://api.openai.com/v1/chat/completions',
         {
             method: 'POST',
             headers: {
-                'Content-Type': 'application/json'
+                'Content-Type': 'application/json',
+                'Authorization': `Bearer ${apiKey}`
             },
             body: JSON.stringify({
-                contents: [{
-                    parts: [{
-                        text: prompt
-                    }]
-                }],
-                generationConfig: {
-                    temperature: 0.1,
-                    topP: 0.95,
-                    topK: 40,
-                    maxOutputTokens: 8192,
-                }
+                model: 'gpt-4o-mini',
+                temperature: 0.1,
+                max_tokens: 4096,
+                messages: [
+                    {
+                        role: 'system',
+                        content: 'Eres un experto en ciberseguridad. Cuando corrijas código, devuelves SOLO el código JavaScript corregido, sin markdown, sin explicaciones, sin backticks.'
+                    },
+                    {
+                        role: 'user',
+                        content: prompt
+                    }
+                ]
             })
         }
     );
 
     if (!response.ok) {
         const errorText = await response.text();
-        console.error(`❌ Error de la API de Gemini: ${response.status} - ${errorText}`);
+        console.error(`❌ Error de la API de OpenAI: ${response.status} - ${errorText}`);
         process.exit(1);
     }
 
     const data = await response.json();
-    let fixedCode = data?.candidates?.[0]?.content?.parts?.[0]?.text;
+    let fixedCode = data?.choices?.[0]?.message?.content;
 
     if (!fixedCode) {
-        console.error("❌ Gemini no devolvió contenido.");
+        console.error("❌ OpenAI no devolvió contenido.");
         console.error(JSON.stringify(data, null, 2));
         process.exit(1);
     }
